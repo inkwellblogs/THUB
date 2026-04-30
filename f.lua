@@ -1,55 +1,63 @@
--- TSB Live & Player Structure Scanner
+-- TSB Live & Player Scanner (FIXED)
 print("===== TSB LIVE & PLAYER SCAN =====")
 
 -- Live Folder Details
-print("\n=== LIVE FOLDER (Players inside map) ===")
+print("\n=== LIVE FOLDER ===")
 local live = workspace:FindFirstChild("Live")
 if live then
     for _, child in ipairs(live:GetChildren()) do
-        print("Live:", child.Name, "| Class:", child.ClassName)
-        
-        -- Check if this is our player
-        if child.Name == lp.Name then
-            print("  >>> THIS IS OUR PLAYER <<<")
-            -- Show Humanoid
-            local hum = child:FindFirstChild("Humanoid")
-            if hum then
-                print("  Humanoid Health:", hum.Health, "/", hum.MaxHealth)
-            end
-            -- Show important attributes
-            pcall(function()
-                local attrs = child:GetAttributes()
-                for k, v in pairs(attrs) do
-                    print("  Attribute:", k, "=", tostring(v))
+        if child and child.Name then
+            print("Live:", child.Name, "| Class:", child.ClassName)
+            
+            if child.Name == lp.Name then
+                print("  >>> THIS IS OUR PLAYER <<<")
+                
+                -- Humanoid
+                local hum = child:FindFirstChild("Humanoid")
+                if hum then
+                    print("  Health:", hum.Health, "/", hum.MaxHealth)
+                    print("  WalkSpeed:", hum.WalkSpeed)
+                    print("  JumpPower:", hum.JumpPower)
                 end
-            end)
-            -- Show key parts
-            for _, partName in ipairs({"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso"}) do
-                local part = child:FindFirstChild(partName)
-                if part then print("  Part:", partName, "- Position:", part.Position) end
+                
+                -- Attributes
+                pcall(function()
+                    local attrs = child:GetAttributes()
+                    if attrs and next(attrs) then
+                        print("  --- Attributes ---")
+                        for k, v in pairs(attrs) do
+                            print("  ", k, "=", tostring(v))
+                        end
+                    end
+                end)
+                
+                -- Key Parts
+                print("  --- Body Parts ---")
+                for _, partName in ipairs({"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso", "RightHand", "LeftHand"}) do
+                    local part = child:FindFirstChild(partName)
+                    if part then
+                        print("  " .. partName .. ":", math.floor(part.Position.X), math.floor(part.Position.Y), math.floor(part.Position.Z))
+                    end
+                end
+                
+                -- Children overview
+                print("  --- Children Count:", #child:GetChildren(), "---")
+                for _, c in ipairs(child:GetChildren()) do
+                    print("  ", c.Name, "[" .. c.ClassName .. "]")
+                end
             end
         end
     end
 end
 
--- Map important folders
-print("\n=== MAP STRUCTURE (1 level deep) ===")
-local map = workspace:FindFirstChild("Map")
-if map then
-    local function show1Level(parent, indent)
-        indent = indent or ""
-        for _, child in ipairs(parent:GetChildren()) do
-            if child:IsA("Folder") then
-                print(indent .. "Folder:", child.Name, "(" .. #child:GetChildren() .. " children)")
-                if #child:GetChildren() <= 10 then
-                    for _, sub in ipairs(child:GetChildren()) do
-                        print(indent .. "  -", sub.Name, "[" .. sub.ClassName .. "]")
-                    end
-                end
-            end
+-- Show other players
+print("\n=== OTHER PLAYERS IN LIVE ===")
+if live then
+    for _, child in ipairs(live:GetChildren()) do
+        if child and child.Name and child.Name ~= lp.Name and child:IsA("Model") and child:FindFirstChild("Humanoid") then
+            print("Player:", child.Name)
         end
     end
-    show1Level(map)
 end
 
 print("===== SCAN COMPLETE =====")

@@ -1396,13 +1396,20 @@ end)
 MainGroup:AddButton({
     Text = "TP to Spawn",
     Func = function()
+        -- Pehle AutoFarm roko
+        local wasFarming = AutoFarm._running
+        if wasFarming then
+            AutoFarm:Stop()
+            task.wait(0.2) -- Thoda wait karo taake farm pura ruke
+        end
+        
+        -- Spawn point dhundho
         local spawnPoint = workspace:FindFirstChild("Points")
         if spawnPoint then
             spawnPoint = spawnPoint:FindFirstChild("Main")
         end
         
         if not spawnPoint then
-            -- Fallback: koi bhi SpawnLocation dhundho
             for _, v in ipairs(workspace:GetDescendants()) do
                 if v:IsA("SpawnLocation") then
                     spawnPoint = v
@@ -1417,6 +1424,8 @@ MainGroup:AddButton({
                 Description = "Spawn point not found!",
                 Time = 3
             })
+            -- Wapas farm start karo agar pehle chal raha tha
+            if wasFarming then AutoFarm:Start() end
             return
         end
         
@@ -1427,19 +1436,34 @@ MainGroup:AddButton({
                 Description = "Character not loaded!",
                 Time = 3
             })
+            if wasFarming then AutoFarm:Start() end
             return
         end
         
+        -- TP karo
         root.CFrame = spawnPoint.CFrame * CFrame.new(0, 5, 0)
         
         Library:Notify({
             Title = "TITANIC HUB",
-            Description = "Teleported to spawn!",
+            Description = "Teleported to spawn! Auto Farm paused.",
             Time = 2
         })
+        
+        -- 2 second baad wapas farm start karo agar pehle chal raha tha
+        if wasFarming then
+            task.delay(2, function()
+                if Toggles.AutoKillToggle.Value then
+                    AutoFarm:Start()
+                    Library:Notify({
+                        Title = "TITANIC HUB",
+                        Description = "Auto Farm resumed!",
+                        Time = 1
+                    })
+                end
+            end)
+        end
     end,
 })
-
 MainGroup:AddToggle("AutoEscapeToggle", {
 	Text = "Auto Escape",
 	Default = false,

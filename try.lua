@@ -972,7 +972,7 @@ local function setupAutoExecute()
 		queue_on_teleport([[
 			repeat task.wait() until game:IsLoaded()
 			task.wait(5)
-			loadstring(game:HttpGet("https://raw.githubusercontent.com/inkwellblogs/THUB/main/try.lua"))()
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/inkwellblogs/THUB/main/hy.lua"))()
 		]])
 	end
 end
@@ -1396,11 +1396,25 @@ end)
 MainGroup:AddButton({
     Text = "TP to Refill",
     Func = function()
-        local refillPart = getRefillPart()
-        if not refillPart then
+        local spawnPoint = workspace:FindFirstChild("Points")
+        if spawnPoint then
+            spawnPoint = spawnPoint:FindFirstChild("Main")
+        end
+        
+        if not spawnPoint then
+            -- Fallback: koi bhi SpawnLocation dhundho
+            for _, v in ipairs(workspace:GetDescendants()) do
+                if v:IsA("SpawnLocation") then
+                    spawnPoint = v
+                    break
+                end
+            end
+        end
+        
+        if not spawnPoint then
             Library:Notify({
                 Title = "TITANIC HUB",
-                Description = "Refill station not found on this map!",
+                Description = "Refill point not found!",
                 Time = 3
             })
             return
@@ -1410,17 +1424,17 @@ MainGroup:AddButton({
         if not root then
             Library:Notify({
                 Title = "TITANIC HUB",
-                Description = "Character not loaded yet!",
+                Description = "Character not loaded!",
                 Time = 3
             })
             return
         end
         
-        root.CFrame = refillPart.CFrame * CFrame.new(0, 5, 10)
+        root.CFrame = spawnPoint.CFrame * CFrame.new(0, 5, 0)
         
         Library:Notify({
             Title = "TITANIC HUB",
-            Description = "Teleported to refill station!",
+            Description = "Teleported to Refill!",
             Time = 2
         })
     end,

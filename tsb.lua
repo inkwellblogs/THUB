@@ -1,4 +1,4 @@
--- TITANIC HUB TSB - Attach to Player
+-- TITANIC HUB TSB - Perma Attach + Auto Attack
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
@@ -7,6 +7,10 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 repeat task.wait() until lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+
+-- Remotes
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Event = ReplicatedStorage:FindFirstChild("Event")
 
 -- Functions
 local function getChar()
@@ -22,17 +26,19 @@ local function getHRP()
     return char and char:FindFirstChild("HumanoidRootPart")
 end
 
+local function getHum()
+    local char = getChar()
+    return char and char:FindFirstChild("Humanoid")
+end
+
 local function getAllPlayers()
     local players = {}
     local live = workspace:FindFirstChild("Live")
     if live then
         for _, v in ipairs(live:GetChildren()) do
             if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
-                if v.Name ~= lp.Name then
-                    local hum = v:FindFirstChild("Humanoid")
-                    if hum.Health > 0 then
-                        table.insert(players, v)
-                    end
+                if v.Name ~= lp.Name and v.Humanoid.Health > 0 then
+                    table.insert(players, v)
                 end
             end
         end
@@ -40,37 +46,59 @@ local function getAllPlayers()
     return players
 end
 
--- Attach settings
+-- Settings
 getgenv().AttachEnabled = false
 getgenv().AttachTarget = nil
-getgenv().AttachOffset = Vector3.new(0, 0, -4) -- Default: Player ke peeche 4 studs
-getgenv().AttachSide = "Back" -- Back, Front, Left, Right, Above, Below
-getgenv().AttachDistance = 4 -- Distance in studs
+getgenv().AttachPosition = "Back" -- Back, Front, Left, Right
+getgenv().AttachDistance = 4
+getgenv().AutoAttack = false
+getgenv().AttackSpeed = 0.15 -- Seconds between M1s
 
-local function getAttachOffset(side, distance)
-    if side == "Back" then
-        return Vector3.new(0, 0, -distance)
-    elseif side == "Front" then
-        return Vector3.new(0, 0, distance)
-    elseif side == "Left" then
-        return Vector3.new(-distance, 0, 0)
-    elseif side == "Right" then
-        return Vector3.new(distance, 0, 0)
-    elseif side == "Above" then
-        return Vector3.new(0, distance, 0)
-    elseif side == "Below" then
-        return Vector3.new(0, -distance, 0)
+-- Attack function
+local lastM1 = 0
+local function doM1()
+    if os.clock() - lastM1 < getgenv().AttackSpeed then return end
+    lastM1 = os.clock()
+    
+    local char = getChar()
+    if not char then return end
+    
+    -- Method 1: Communicate remote
+    local communicate = char:FindFirstChild("Communicate")
+    if communicate and communicate:IsA("RemoteEvent") then
+        pcall(function()
+            communicate:FireServer("M1")
+        end)
     end
-    return Vector3.new(0, 0, -distance)
+    
+    -- Method 2: Direct Event
+    if Event then
+        pcall(function()
+            Event:FireServer("M1")
+        end)
+    end
+    
+    -- Method 3: Attribute trick
+    pcall(function()
+        char:SetAttribute("M1Ready", true)
+        char:SetAttribute("HoldingM1", true)
+    end)
 end
 
--- Main Attach Loop
+-- Main Attach Loop - Force lock
 local attachConnection
 local function toggleAttach(enable)
     getgenv().AttachEnabled = enable
     
     if enable then
-        attachConnection = RunService.Heartbeat:Connect(function()
+        -- Disable character movement
+        local hum = getHum()
+        if hum then
+            hum.WalkSpeed = 0
+            hum.JumpPower = 0
+        end
+        
+        attachConnection = RunService.Stepped:Connect(function()
             if not getgenv().AttachEnabled then return end
             
             local target = getgenv().AttachTarget
@@ -81,13 +109,40 @@ local function toggleAttach(enable)
             
             if not targetHRP or not myHRP then return end
             
-            local offset = getAttachOffset(getgenv().AttachSide, getgenv().AttachDistance)
-            local targetCFrame = targetHRP.CFrame
-            local newPos = targetCFrame.Position + (targetCFrame.LookVector * offset.Z) + (targetCFrame.RightVector * offset.X) + (targetCFrame.UpVector * offset.Y)
+            -- Calculate position based on side
+            local targetCF = targetHRP.CFrame
+            local offset = Vector3.new(0, 0, 0)
             
-            myHRP.CFrame = CFrame.new(newPos) * CFrame.Angles(targetCFrame.Rotation.X, targetCFrame.Rotation.Y, targetCFrame.Rotation.Z)
+            if getgenv().AttachPosition == "Back" then
+                offset = Vector3.new(0, 0, -getgenv().AttachDistance)
+            elseif getgenv().AttachPosition == "Front" then
+                offset = Vector3.new(0, 0, getgenv().AttachDistance)
+            elseif getgenv().AttachPosition == "Left" then
+                offset = Vector3.new(-getgenv().AttachDistance, 0, 0)
+            elseif getgenv().AttachPosition == "Right" then
+                offset = Vector3.new(getgenv().AttachDistance, 0, 0)
+            end
+            
+            -- Force set position every frame
+            myHRP.Velocity = Vector3.new(0, 0, 0)
+            myHRP.RotVelocity = Vector3.new(0, 0, 0)
+            myHRP.CFrame = targetCF * CFrame.new(offset) * CFrame.Angles(0, targetCF.Rotation.Y, 0)
+            myHRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            myHRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            
+            -- Auto attack
+            if getgenv().AutoAttack then
+                doM1()
+            end
         end)
     else
+        -- Restore movement
+        local hum = getHum()
+        if hum then
+            hum.WalkSpeed = 16
+            hum.JumpPower = 50
+        end
+        
         if attachConnection then
             attachConnection:Disconnect()
             attachConnection = nil
@@ -102,7 +157,7 @@ local Window = Rayfield:CreateWindow({
     Name = "TITANIC HUB - TSB",
     Icon = 4483362458,
     LoadingTitle = "TITANIC HUB",
-    LoadingSubtitle = "Attach to Player",
+    LoadingSubtitle = "Perma Attach + Auto Attack",
     Theme = "Default",
     DisableRayfieldPrompts = true,
     ConfigurationSaving = {Enabled = true, FolderName = "THUB/tsb", FileName = "attach_config"},
@@ -110,11 +165,9 @@ local Window = Rayfield:CreateWindow({
 })
 
 local MainTab = Window:CreateTab("Attach", 4483362458)
-local SettingsTab = Window:CreateTab("Settings", 4483362458)
 
-MainTab:CreateSection("Attach to Player")
+MainTab:CreateSection("Target Player")
 
--- Player list dropdown
 local function updatePlayerList()
     local players = {}
     for _, v in ipairs(getAllPlayers()) do
@@ -126,10 +179,8 @@ local function updatePlayerList()
     return players
 end
 
-MainTab:CreateLabel("Select target player:")
-
 local PlayerDropdown = MainTab:CreateDropdown({
-    Name = "Target Player",
+    Name = "Select Player",
     Options = updatePlayerList(),
     CurrentOption = "",
     Flag = "TargetPlayer",
@@ -148,21 +199,21 @@ MainTab:CreateButton({
     end,
 })
 
-MainTab:CreateSection("Position Settings")
+MainTab:CreateSection("Position")
 
 MainTab:CreateDropdown({
-    Name = "Attach Position",
-    Options = {"Back", "Front", "Left", "Right", "Above", "Below"},
+    Name = "Attach Side",
+    Options = {"Back", "Front", "Left", "Right"},
     CurrentOption = "Back",
     Flag = "AttachSide",
     Callback = function(option)
-        getgenv().AttachSide = option
+        getgenv().AttachPosition = option
     end,
 })
 
 MainTab:CreateSlider({
     Name = "Distance",
-    Range = {1, 20},
+    Range = {1, 10},
     Increment = 0.5,
     CurrentValue = 4,
     Flag = "AttachDistance",
@@ -171,10 +222,10 @@ MainTab:CreateSlider({
     end,
 })
 
-MainTab:CreateSection("Control")
+MainTab:CreateSection("Controls")
 
 MainTab:CreateToggle({
-    Name = "Attach to Player",
+    Name = "Attach + Lock",
     CurrentValue = false,
     Flag = "AttachToggle",
     Callback = function(value)
@@ -182,29 +233,64 @@ MainTab:CreateToggle({
     end,
 })
 
-MainTab:CreateLabel("Toggle ON to attach | OFF to detach")
-MainTab:CreateLabel("Default: Player ke peeche 4 studs")
-
--- Settings
-SettingsTab:CreateSection("UI Settings")
-SettingsTab:CreateKeybind({
-    Name = "Toggle UI",
-    CurrentKeybind = "RightControl",
-    HoldToInteract = false,
-    Flag = "MenuKeybind",
+MainTab:CreateToggle({
+    Name = "Auto Attack (M1)",
+    CurrentValue = false,
+    Flag = "AutoAttackToggle",
+    Callback = function(value)
+        getgenv().AutoAttack = value
+    end,
 })
 
--- Refresh player list periodically
+MainTab:CreateSlider({
+    Name = "Attack Speed",
+    Range = {0.05, 1},
+    Increment = 0.05,
+    CurrentValue = 0.15,
+    Flag = "AttackSpeedSlider",
+    Callback = function(value)
+        getgenv().AttackSpeed = value
+    end,
+})
+
+MainTab:CreateLabel("1. Select Player")
+MainTab:CreateLabel("2. Set Position & Distance")
+MainTab:CreateLabel("3. Toggle ATTACH ON")
+MainTab:CreateLabel("4. Toggle AUTO ATTACK ON")
+MainTab:CreateLabel("")
+MainTab:CreateLabel("Move joystick se nahi hatega!")
+MainTab:CreateLabel("Toggle OFF karke chhodo")
+
+-- Auto refresh player list
 task.spawn(function()
     while true do
-        PlayerDropdown:Refresh(updatePlayerList())
-        task.wait(5)
+        pcall(function()
+            PlayerDropdown:Refresh(updatePlayerList())
+        end)
+        task.wait(3)
+    end
+end)
+
+-- Anti-detach: Re-enable attach on character respawn
+task.spawn(function()
+    local lastChar
+    while true do
+        local char = getChar()
+        if char ~= lastChar and getgenv().AttachEnabled then
+            lastChar = char
+            task.wait(0.5)
+            toggleAttach(false)
+            task.wait(0.2)
+            toggleAttach(true)
+        end
+        lastChar = char
+        task.wait(1)
     end
 end)
 
 Rayfield:Notify({
     Title = "TITANIC HUB",
-    Content = "Attach to Player loaded!\n1. Select player\n2. Set position\n3. Toggle ON",
+    Content = "Perma Attach Loaded!\nAttach ON = Character lock ho jayega\nAuto Attack ON = Automatic M1",
     Duration = 5,
     Image = 4483362458,
 })

@@ -79,11 +79,11 @@ local familyRaritiesOptions = {
 }
 
 -- Config system for persistent dropdown state
-if not isfolder("./THUH") then makefolder("./THUB") end
-if not isfolder("./THUB/aotr") then makefolder("./THUB/aotr") end
+if not isfolder("./TH") then makefolder("./TH") end
+if not isfolder("./TH/aotr") then makefolder("./TH/aotr") end
 
-local ConfigFile = "./THUB/aotr/dropdown_config.json"
-local returnCounterPath = "./THUB/aotr/return_lobby_counter.txt"
+local ConfigFile = "./TH/aotr/dropdown_config.json"
+local returnCounterPath = "./TH/aotr/return_lobby_counter.txt"
 local HttpService = game:GetService("HttpService")
 
 local function LoadConfig()

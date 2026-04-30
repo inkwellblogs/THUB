@@ -54,37 +54,8 @@ getgenv().AttachDistance = 4
 getgenv().AutoAttack = false
 getgenv().AttackSpeed = 0.15 -- Seconds between M1s
 
--- Attack function
-local lastM1 = 0
-local function doM1()
-    if os.clock() - lastM1 < getgenv().AttackSpeed then return end
-    lastM1 = os.clock()
-    
-    local char = getChar()
-    if not char then return end
-    
-    -- Method 1: Communicate remote
-    local communicate = char:FindFirstChild("Communicate")
-    if communicate and communicate:IsA("RemoteEvent") then
-        pcall(function()
-            communicate:FireServer("M1")
-        end)
-    end
-    
-    -- Method 2: Direct Event
-    if Event then
-        pcall(function()
-            Event:FireServer("M1")
-        end)
-    end
-    
-    -- Method 3: Attribute trick
-    pcall(function()
-        char:SetAttribute("M1Ready", true)
-        char:SetAttribute("HoldingM1", true)
-    end)
-end
 
+  
 -- Main Attach Loop - Force lock
 local attachConnection
 local function toggleAttach(enable)
